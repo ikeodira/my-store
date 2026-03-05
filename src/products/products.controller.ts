@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import type { ProductType } from './product.type';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -28,19 +30,17 @@ export class ProductsController {
 
     // POST /products
     @Post()
-    create(
-        @Body() body: Omit<ProductType, 'id' | 'createdAt'>,
-    ): ProductType {
-        return this.productsService.create(body);
+    create(@Body() createProductDto: CreateProductDto): ProductType {
+        return this.productsService.create(createProductDto);
     }
 
     // PATCH /products/:id
     @Patch(':id')
     update(
         @Param('id') id: string,
-        @Body() body: Partial<Omit<ProductType, 'id' | 'createdAt'>>,
+        @Body() updateProductDto: UpdateProductDto,
     ): ProductType {
-        return this.productsService.update(+id, body);
+        return this.productsService.update(+id, updateProductDto);
     }
 
     // DELETE /products/:id
