@@ -1,51 +1,49 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ProductType } from './product.type';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Product } from './entities/product.entity';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
-    private products: ProductType[] = [];
-    private nextId = 1;
+    constructor(
+        @InjectRepository(Product)
+        private readonly productRepository: Repository<Product>,
+    ) { }
 
-    findAll(): ProductType[] {
-        return this.products;
+    findAll(): Promise<Product[]> {
+        return this.productRepository.find({ relations: ['owner'] });
     }
 
-    findOne(id: number): ProductType {
-        const product = this.products.find((p) => p.id === id);
+    async findOne(id: number): Promise<Product> {
+        const product = await this.productRepository.findOne({
+            where: { id },
+            relations: ['owner'],
+        });
         if (!product) {
             throw new NotFoundException(`Product with id ${id} not found`);
         }
         return product;
     }
 
-    create(product: Omit<ProductType, 'id' | 'createdAt'>): ProductType {
-        const newProduct: ProductType = {
-            id: this.nextId++,
-            ...product,
-            createdAt: new Date(),
-        };
-        this.products.push(newProduct);
-        return newProduct;
+    async create(createProductDto: CreateProductDto, userId: number): Promise<Product> {
+        const product = this.productRepository.create({
+            ...createProductDto,
+            ownerId: userId,
+        });
+        return this.productRepository.save(product);
     }
 
-    update(
-        id: number,
-        product: Partial<Omit<ProductType, 'id' | 'createdAt'>>,
-    ): ProductType {
-        const index = this.products.findIndex((p) => p.id === id);
-        if (index === -1) {
-            throw new NotFoundException(`Product with id ${id} not found`);
-        }
-        this.products[index] = { ...this.products[index], ...product };
-        return this.products[index];
+    async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
+        const product = await this.findOne(id);
+        Object.assign(product, updateProductDto);
+        return this.productRepository.save(product);
     }
 
-    remove(id: number): { message: string } {
-        const index = this.products.findIndex((p) => p.id === id);
-        if (index === -1) {
-            throw new NotFoundException(`Product with id ${id} not found`);
-        }
-        this.products.splice(index, 1);
+    async remove(id: number): Promise<{ message: string }> {
+        const product = await this.findOne(id);
+        await this.productRepository.remove(product);
         return { message: `Product with id ${id} has been deleted` };
     }
 }
